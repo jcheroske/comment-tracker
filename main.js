@@ -1,84 +1,145 @@
 import { LocalDate } from '@js-joda/core';
 import { PrismaClient } from '@prisma/client';
+import { promises as fs } from 'fs';
+import { JSDOM } from 'jsdom';
 import { pick } from 'lodash/fp';
+import Papa from 'papaparse';
 import SwaggerClient from 'swagger-client';
 import { loadAndValidateEnv } from './util/loadAndValidateEnv';
+const { window } = new JSDOM();
 const DOCKET_ID = 'CDC-2020-0087';
 const DOCUMENT_ID = 'CDC-2020-0087-0001';
 const env = loadAndValidateEnv();
 let prisma;
 let swagger;
 (async () => {
-    swagger = await getSwaggerClient();
-    prisma = new PrismaClient();
-    const docket = createDocket(DOCKET_ID);
     try {
-        let document = await prisma.document.findOne({ where: { id: DOCUMENT_ID } });
-        if (!document) {
-            const documentResult = await swagger.apis.documents.get_documents__documentId_({
-                documentId: DOCUMENT_ID,
-            });
-            checkSwaggerResult(documentResult);
-            document = await prisma.document.create({
-                data: {
-                    ...newModelFromResult(documentResult),
-                    docket: connectToModel('docketId', documentResult),
-                },
-            });
-            console.log('Created document');
-        }
-        else {
-            console.log('Document already exists in database!');
-        }
-        const commentStartDate = convertDateTimeToLocalDate(document.attributes.commentStartDate);
-        const commentEndDate = convertDateTimeToLocalDate(document.attributes.commentEndDate);
-        const today = LocalDate.now();
-        const loopEndDate = commentEndDate.isBefore(today) ? commentEndDate : today;
-        for (let d = commentStartDate; d.compareTo(loopEndDate) <= 0; d = d.plusDays(1)) {
-            let pageNumber, totalPages;
-            do {
-                const commentsResult = await swagger.apis.comments.get_comments({
-                    'filter[commentOnId]': document.attributes.objectId,
-                    'filter[postedDate]': d.toString(),
-                    sort: 'postedDate',
-                });
-                checkSwaggerResult(commentsResult);
-                const { data, meta } = commentsResult.obj;
-                for (let i = 0; i < data.length; i++) {
-                    const commentId = data[0].id;
-                    const comment = await prisma.comment.findOne({
-                        where: { id: commentId },
-                    });
-                    if (!comment) {
-                        const commentResult = swagger.apis.comments.get_comments__commentId_({ commentId });
-                        checkSwaggerResult(commentResult);
-                    }
-                }
-                pageNumber = meta.pageNumber;
-                totalPages = meta.totalPages;
-                console.log(`date: ${d.toString()}, num: ${meta.totalElements}, totalPages: ${meta.totalPages}, pageNum: ${meta.pageNumber}, pageSize: ${meta.pageSize}`);
-            } while (pageNumber < totalPages);
-        }
+        swagger = await getSwaggerClient();
+        prisma = new PrismaClient();
+        // const docket = await createDocket(DOCKET_ID)
+        //
+        // const document = await createDocument(DOCUMENT_ID)
+        //
+        // const commentStartDate = convertDateTimeToLocalDate(
+        //   document.attributes.commentStartDate
+        // )
+        // const commentEndDate = convertDateTimeToLocalDate(
+        //   document.attributes.commentEndDate
+        // )
+        // const today = LocalDate.now()
+        // const loopEndDate = commentEndDate.isBefore(today) ? commentEndDate : today
+        // for (
+        //   let d = commentStartDate;
+        //   d.compareTo(loopEndDate) <= 0;
+        //   d = d.plusDays(1)
+        // ) {
+        //   let pageNumber, totalPages
+        //   do {
+        //     const swaggerResult = await swagger.apis.comments.get_comments({
+        //       'filter[commentOnId]': document.attributes.objectId,
+        //       'filter[postedDate]': d.toString(),
+        //       'page[number]': pageNumber,
+        //       sort: 'postedDate',
+        //     })
+        //
+        //     checkSwaggerResult(swaggerResult)
+        //     const { data, meta } = swaggerResult.obj
+        //
+        //     console.log(
+        //       `[${d.toString()}] Page ${meta.pageNumber}/${
+        //         meta.totalPages
+        //       }, Count: ${
+        //         meta.numberOfElements + (meta.pageNumber - 1) * meta.pageSize
+        //       }/${meta.totalElements}`
+        //     )
+        //
+        //     await Promise.map(data, (c: SwaggerModel) => createComment(c.id))
+        //
+        //     pageNumber = meta.pageNumber + 1
+        //     totalPages = meta.totalPages
+        //   } while (pageNumber <= totalPages)
+        // }
+        const comments = await prisma.comment.findMany({
+            select: {
+                id: true,
+                attributes: true,
+            },
+        });
+        const csvComments = comments.map((c) => ({
+            id: c.id,
+            firstName: c.attributes.firstName,
+            lastName: c.attributes.lastName,
+            title: c.attributes.title,
+            comment: stripHtml(c.attributes.comment),
+            postedDate: c.attributes.postedDate,
+            city: c.attributes.city,
+            submitterRepCityState: c.attributes.submitterRepCityState,
+            country: c.attributes.country,
+        }));
+        const csvString = Papa.unparse(csvComments);
+        await fs.writeFile('./comments.csv', csvString);
     }
     catch (e) {
         console.log(e);
     }
     finally {
-        await prisma.$disconnect();
+        // @ts-ignore
+        if (prisma != null) {
+            await prisma.$disconnect();
+        }
     }
 })();
+function stripHtml(html) {
+    const tmp = window.document.createElement('DIV');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+}
 async function createDocket(docketId) {
-    let docket = await prisma.docket.findOne({ where: { id: DOCKET_ID } });
+    let docket = await prisma.docket.findOne({ where: { id: docketId } });
     if (!docket) {
-        const docketResult = await swagger.apis.dockets.get_dockets__docketId_({
+        const swaggerResult = await swagger.apis.dockets.get_dockets__docketId_({
             docketId,
         });
-        checkSwaggerResult(docketResult);
+        checkSwaggerResult(swaggerResult);
         docket = await prisma.docket.create({
-            data: newModelFromResult(docketResult),
+            data: newModelFromResult(swaggerResult),
         });
+        console.log('Docket created');
     }
     return docket;
+}
+async function createDocument(documentId) {
+    let document = await prisma.document.findOne({ where: { id: documentId } });
+    if (!document) {
+        const swaggerResult = await swagger.apis.documents.get_documents__documentId_({ documentId });
+        checkSwaggerResult(swaggerResult);
+        document = await prisma.document.create({
+            data: {
+                ...newModelFromResult(swaggerResult),
+                docket: connectToModel('docketId', swaggerResult),
+            },
+        });
+        console.log('Document created');
+    }
+    return document;
+}
+async function createComment(commentId) {
+    let comment = await prisma.comment.findOne({ where: { id: commentId } });
+    if (!comment) {
+        const swaggerResult = await swagger.apis.comments.get_comments__commentId_({
+            commentId,
+        });
+        checkSwaggerResult(swaggerResult);
+        comment = await prisma.comment.create({
+            data: {
+                ...newModelFromResult(swaggerResult),
+                docket: connectToModel('docketId', swaggerResult),
+                document: connectToModel('commentOnDocumentId', swaggerResult),
+            },
+        });
+        console.log(`Comment[${comment.id}] created`);
+    }
+    return comment;
 }
 async function getSwaggerClient() {
     const requestInterceptor = (req) => {
