@@ -1,0 +1,50 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator prisma_client {
+  provider = "prisma-client-js"
+  binaryTargets   = ["native"]
+  previewFeatures = ["atomicNumberOperations", "connectOrCreate", "insensitiveFilters", "transactionApi"]
+}
+
+model DocketImport {
+  id String @id
+  insertedAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  modifyDate DateTime
+  objectId String @unique
+  attbibutes Json
+  links Json
+
+  commentImports CommentImport[]
+  documentImports DocumentImport[]
+}
+
+model Campaign {
+  id Int @id @default(autoincrement())
+  insertedAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  name String
+
+  dockets Docket[]
+}
+
+model Docket {
+  id Int @id @default(autoincrement())
+  insertedAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  campaignId Int
+  docketImportId String
+
+  docketImport DocketImport @relation(fields: [docketImportId], references: [id])
+  comments Comments[]
+
+  @@index(fields: [campaignId])
+  @@index(fields: [docketImportId])
+}
+
