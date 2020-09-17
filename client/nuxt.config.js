@@ -58,6 +58,7 @@ export default {
   modules: [
     // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
+    './server/restServerModule',
   ],
   /*
    ** Axios module configuration
@@ -90,4 +91,12 @@ export default {
    ** See https://nuxtjs.org/api/configuration-build/
    */
   build: {},
+
+  privateRuntimeConfig: {
+    restServer: {
+      apiKey: process.env.REGULATIONS_GOV_API_KEY,
+      baseURL: 'https://api.regulations.gov/v4',
+      contextPath: '/api',
+    },
+  },
 }
