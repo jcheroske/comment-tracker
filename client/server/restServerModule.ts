@@ -2,7 +2,8 @@ import { Module } from '@nuxt/types'
 import { addAsync, ExpressWithAsync } from '@awaitjs/express'
 import axiosStatic, { AxiosError, AxiosInstance } from 'axios'
 import express, { ErrorRequestHandler } from 'express'
-import createError from 'http-errors'
+// @ts-ignore
+import createError from 'http-errors' // no idea why webstorm can't find the types
 
 import { PrivateRuntimeConfig, RestServerOptions } from '~/types/types'
 

@@ -20,7 +20,8 @@
     "express": "^4.17.1",
     "http-errors": "^1.8.0",
     "lodash": "^4.17.20",
-    "nuxt": "^2.14.0"
+    "nuxt": "^2.14.0",
+    "vue-recaptcha-v3": "^1.9.0"
   },
   "devDependencies": {
     "@nuxt/types": "^2.14.0",

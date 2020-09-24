@@ -1,11 +1,19 @@
 import { NuxtRuntimeConfig } from '@nuxt/types/config/runtime'
 
-export type RestServerOptions = {
+type RestServerOptions = {
   apiKey: string
   baseURL: string
   contextPath: string
 }
 
-export interface PrivateRuntimeConfig extends NuxtRuntimeConfig {
+type CruiseCampaignOptions = {
+  documentId: string
+}
+
+export type PrivateRuntimeConfig = NuxtRuntimeConfig & {
   restServer: RestServerOptions
+}
+
+export type PublicRuntimeConfig = NuxtRuntimeConfig & {
+  cruiseCampaign: CruiseCampaignOptions
 }
