@@ -1,6 +1,11 @@
 import { AxiosInstance } from 'axios'
 
-export const createApi = ($axios: AxiosInstance) => ({
+export interface IRegulationsGov {
+  getDocument(id: string): Promise<any>
+  getComment(id: string): Promise<any>
+}
+
+export const createApi = ($axios: AxiosInstance): IRegulationsGov => ({
   getDocument(id: string): Promise<any> {
     return getObjectById('/documents/:id', id, $axios)
   },

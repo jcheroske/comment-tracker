@@ -1,5 +1,6 @@
-import { AxiosRequestConfig } from 'axios'
 import { Plugin } from '@nuxt/types'
+import { AxiosRequestConfig } from 'axios'
+import Qs from 'qs'
 
 const axiosInstancePlugin: Plugin = function ({ $axios }, inject) {
   const name = '<%= options.name %>'
