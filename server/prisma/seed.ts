@@ -19,7 +19,7 @@ async function main() {
   // Could use Promise.all
   // Sequential here so that world IDs match the array order above
 
-  let results = []
+  const results = []
 
   for (const world of worlds) {
     results.push(await db.world.create({ data: world }))
@@ -27,5 +27,5 @@ async function main() {
 
   console.log('Seeded: %j', results)
 
-  db.disconnect()
+  await db.$disconnect()
 }

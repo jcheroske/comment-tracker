@@ -17,5 +17,6 @@
     },
     "types": ["@types/node", "@nuxt/types", "@nuxtjs/axios"]
   },
-  "exclude": ["node_modules", ".nuxt", "dist"]
+  "include": ["**/*.js", "**/*.ts", "**/*.vue", ".eslintrc.js", ".prettierrc.js"],
+  "exclude": ["node_modules", "dist"]
 }
